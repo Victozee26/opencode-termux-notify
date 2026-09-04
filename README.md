@@ -1,6 +1,6 @@
 # opencode-termux-notify
 
-Termux notification plugin for [OpenCode](https://opencode.ai) **V2/V1** on Android. Routes OpenCode attention events to `termux-notification` and `termux-media-player`.
+Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Routes OpenCode attention events to `termux-notification` and `termux-media-player`. **Default is V1 (`opencode`), V2 (`opencode2`) via `opencode-termux-notify/v2`.**
 
 [![npm version](https://img.shields.io/npm/v/opencode-termux-notify)](https://www.npmjs.com/package/opencode-termux-notify)
 [![license](https://img.shields.io/npm/l/opencode-termux-notify)](./LICENSE)
@@ -20,28 +20,65 @@ Termux notification plugin for [OpenCode](https://opencode.ai) **V2/V1** on Andr
 
 ## Install
 
+**V1 (default) — `opencode` (1.18.27+):**
+
 ```bash
-opencode2 plugin add opencode-termux-notify
+opencode plugin add opencode-termux-notify
+# or explicitly
+opencode plugin add opencode-termux-notify/v1
 ```
 
-Alternative - Add to `opencode.json`:
+Add to `opencode.json`:
 
 ```jsonc
-// ~/.config/opencode/opencode.json
+// ~/.config/opencode/opencode.json  (V1: singular "plugin")
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": ["opencode-termux-notify"]
+  "plugin": ["opencode-termux-notify"]
+}
+```
+
+**V2 — `opencode2` (beta):**
+
+```bash
+opencode2 plugin add opencode-termux-notify/v2
+```
+
+Add to `opencode.json`:
+
+```jsonc
+// ~/.config/opencode/opencode.json  (V2: plural "plugins")
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["opencode-termux-notify/v2"]
+}
+```
+
+Local path (this repo) for V2 — must be a directory:
+
+```jsonc
+{
+  "plugins": ["/data/data/com.termux/files/home/opencode-termux-notify/v2"]
 }
 ```
 
 ## Usage
 
-With options:
+With options (same for V1/V2, note `plugin` vs `plugins`):
 
 ```jsonc
+// V1
+{
+  "plugin": [["opencode-termux-notify", {
+    "kinds": ["question", "permission", "error", "done", "subagent_done"],
+    "notifySubagents": true,
+    "priority": "high"
+  }]]
+}
+// V2
 {
   "plugins": [{
-    "package": "opencode-termux-notify",
+    "package": "opencode-termux-notify/v2",
     "options": {
       "kinds": ["question", "permission", "error", "done", "subagent_done"],
       "notifySubagents": true,
