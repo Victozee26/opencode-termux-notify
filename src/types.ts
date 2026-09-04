@@ -12,7 +12,7 @@ export interface TermuxNotifyOptions {
   vibrate?: boolean
   requireTermux?: boolean
   priority?: "high" | "low" | "default" | "max" | (string & {})
-  kinds?: Array<"default" | "question" | "permission" | "error" | "done" | "subagent_done" | "idle">
+  kinds?: Array<"default" | "question" | "permission" | "error" | "done" | "subagent_done">
   notifySubagents?: boolean
   title_default?: string
   title_done?: string
@@ -26,13 +26,6 @@ export interface TermuxNotifyOptions {
   content_question?: string
   content_permission?: string
   content_error?: string
-  // legacy
-  vibrateIdle?: string
-  vibrateError?: string
-  titleIdle?: string
-  titleError?: string
-  contentIdle?: string
-  contentError?: string
 }
 
 export type NotifyKind = "default" | "question" | "permission" | "error" | "done" | "subagent_done"

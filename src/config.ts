@@ -10,17 +10,11 @@ export function resolveOpts(userOpts: TermuxNotifyOptions): ResolvedOpts {
 }
 
 export function getEnabledKinds(userOpts: TermuxNotifyOptions): Set<string> {
-  const enabledKinds = new Set<string>(
+  return new Set<string>(
     Array.isArray(userOpts.kinds) && userOpts.kinds.length
       ? (userOpts.kinds as string[])
       : ["default", "question", "permission", "error", "done", "subagent_done"],
   )
-  if (enabledKinds.has("idle")) {
-    enabledKinds.delete("idle")
-    enabledKinds.add("done")
-    enabledKinds.add("default")
-  }
-  return enabledKinds
 }
 
 export function getTitle(kind: string, sessionName: string, userOpts: TermuxNotifyOptions): string {

@@ -1,13 +1,13 @@
 # opencode-termux-notify
 
-Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Routes OpenCode attention events to `termux-notification` and `termux-media-player`. **Default is V1 (`opencode`), V2 (`opencode2`) via `opencode-termux-notify/v2`.**
+Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Routes OpenCode attention events to `termux-notification` and `termux-media-player` via the OpenCode V2 plugin API (`@opencode-ai/plugin/v2/promise`).
 
 [![npm version](https://img.shields.io/npm/v/opencode-termux-notify)](https://www.npmjs.com/package/opencode-termux-notify)
 [![license](https://img.shields.io/npm/l/opencode-termux-notify)](./LICENSE)
 
 ## Features
 
-- 6 notification kinds (default, question, permission, error, done, subagent_done) with distinct vibration and audio via `termux-media-player` from Opencode
+- 6 notification kinds (default, question, permission, error, done, subagent_done) with distinct vibration and audio via `termux-media-player`
 - Cross-instance deduplication via shared JSON file and stable notification IDs
 - Spam prevention via event TTL (60s), per-session cooldown (5s), and global throttle (1s)
 - Session-aware titles resolved from OpenCode session metadata
@@ -16,69 +16,42 @@ Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Route
 ## Requirements
 
 - Android + Termux with `termux-api` (`pkg install termux-api` and install Termux:API app)
-- Node >= 20, OpenCode >= 1.18.27
+- Node >= 20, OpenCode >= 1.18.27 (V2 plugin API)
 
 ## Install
 
-**V1 (default) — `opencode` (1.18.27+):**
-
 ```bash
-opencode plugin opencode-termux-notify        # latest
-opencode plugin opencode-termux-notify -g      # install globally instead of per-project
+opencode plugin add opencode-termux-notify
 ```
 
-Add to `opencode.json`:
+Add to `opencode.jsonc`:
 
 ```jsonc
-// ~/.config/opencode/opencode.json  (V1: singular "plugin")
+// ~/.config/opencode/opencode.jsonc
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-termux-notify"]
+  "plugins": ["opencode-termux-notify"]
 }
 ```
 
-**V2 — `opencode2` (beta):**
-
-```bash
-opencode2 plugin add opencode-termux-notify/v2
-```
-
-Add to `opencode.jsonc` (`opencode.json(c)`):
-
-```jsonc
-// ~/.config/opencode/opencode.jsonc  (V2: plural "plugins")
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": ["opencode-termux-notify/v2"]
-}
-```
-
-Local path (this repo) for V2 — must be a directory (`opencode.jsonc`):
+Local path (this repo):
 
 ```jsonc
 // opencode.jsonc
 {
-  "plugins": ["/data/data/com.termux/files/home/opencode-termux-notify/v2"]
+  "plugins": ["/data/data/com.termux/files/home/opencode-termux-notify"]
 }
 ```
 
 ## Usage
 
-With options (same for V1/V2, note `plugin` vs `plugins` and `opencode.json` vs `opencode.jsonc`):
+With options:
 
 ```jsonc
-// V1 — opencode.json
-{
-  "plugin": [["opencode-termux-notify", {
-    "kinds": ["question", "permission", "error", "done", "subagent_done"],
-    "notifySubagents": true,
-    "priority": "high"
-  }]]
-}
-// V2 — opencode.jsonc
+// opencode.jsonc
 {
   "plugins": [{
-    "package": "opencode-termux-notify/v2",
+    "package": "opencode-termux-notify",
     "options": {
       "kinds": ["question", "permission", "error", "done", "subagent_done"],
       "notifySubagents": true,
@@ -88,10 +61,10 @@ With options (same for V1/V2, note `plugin` vs `plugins` and `opencode.json` vs 
 }
 ```
 
-Restart the opencode after editing config:
+Restart OpenCode after editing config:
 
 ```bash
-opencode2 service restart
+opencode service restart
 ```
 
 Grant notification permission on Android 13+ under Settings > Apps > Termux > Notifications. Verify with:
