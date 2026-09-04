@@ -37,6 +37,7 @@
   "files": [
     "src/",
     "assets/",
+    "index.js",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"
