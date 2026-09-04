@@ -1,0 +1,9 @@
+# although `files` in package.json is preferred, keep this as a safety net
+node_modules
+.opencode
+*.log
+tmp
+dist
+tsconfig.json
+.git
+.github

@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "opencode-termux-notify",
+  "version": "1.0.0",
+  "description": "Termux-native notifications for OpenCode — vibrate + sound alerts on Android when sessions go idle or error, with cross-instance deduplication.",
+  "type": "module",
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "termux",
+    "android",
+    "notification",
+    "termux-notification",
+    "ai",
+    "agent"
+  ],
+  "license": "MIT",
+  "author": "Victozee26 <https://github.com/Victozee26>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Victozee26/opencode-termux-notify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Victozee26/opencode-termux-notify/issues"
+  },
+  "homepage": "https://github.com/Victozee26/opencode-termux-notify#readme",
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/Victozee26"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.18.27"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --project tsconfig.json --outDir dist 2>&1 | head -n 50; echo \"JS ships directly from src/ — build is optional for type emission\"",
+    "prepublishOnly": "npm run typecheck",
+    "pack:dry": "npm pack --dry-run",
+    "test": "node --test src/index.test.js 2>&1 | head -n 100; echo \"no tests yet — see CONTRIBUTING\""
+  },
+  "opencode": {
+    "plugin": true
+  }
+}

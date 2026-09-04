@@ -1,0 +1,23 @@
+# deps
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# build
+dist/
+*.tsbuildinfo
+.tmp/
+
+# logs
+npm-debug.log*
+.opencode/
+tmp/
+termux-notify-shared.json
+
+# os
+.DS_Store
+Thumbs.db
+
+# env
+.env
