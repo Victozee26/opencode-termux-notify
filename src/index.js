@@ -1,72 +1,132 @@
 /**
  * opencode-termux-notify — Termux-native notifications for OpenCode (V2)
  *
- * Fires a `termux-notification` with vibrate + sound when an OpenCode session
- * goes idle (succeeded) or errors, with robust cross-instance deduplication.
+ * Fires `termux-notification` + `termux-media-player` with the 6 builtin
+ * attention sounds:
+ *   default       → bip-bop-01.mp3
+ *   question      → bip-bop-03.mp3
+ *   permission    → staplebops-06.mp3
+ *   error         → nope-03.mp3
+ *   done          → bip-bop-01.mp3
+ *   subagent_done → yup-01.mp3
  *
- * Loaded via `opencode.json`:
- * ```jsonc
- * { "plugins": ["opencode-termux-notify"] }
- * // or with options:
- * { "plugins": [{ "package": "opencode-termux-notify", "options": { "sound": true } }] }
- * ```
- *
- * Deduplication strategy (why you won't get 3× notifications):
- * - dedup by `event.id` (server emits duplicates) with TTL
- * - per-session cooldown (session.idle / execution.succeeded / status:idle triple)
- * - cross-process shared JSON file + stable `termux-notification --id`
+ * Dedup: event.id TTL 60s + per-session cooldown 5s + global 1s + stable --id
+ * Audio: bundled at assets/audio/*.mp3, played via `termux-media-player play <file>`
+ *        (termux-notification --sound is boolean only — no file arg, see `termux-notification -h`)
  *
  * @see https://github.com/Victozee26/opencode-termux-notify
  */
 
 import { readFile, writeFile, rename } from "node:fs/promises"
+import { existsSync } from "node:fs"
 import { spawn } from "node:child_process"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, dirname } from "node:path"
+import { fileURLToPath } from "node:url"
 import { define } from "@opencode-ai/plugin/v2/promise"
+
+// ── sound map (matches packages/tui/src/attention.ts) ─────────────────────
+
+const SOUND_FILES = {
+  default: "bip-bop-01.mp3",
+  question: "bip-bop-03.mp3",
+  permission: "staplebops-06.mp3",
+  error: "nope-03.mp3",
+  done: "bip-bop-01.mp3",
+  subagent_done: "yup-01.mp3",
+}
+
+const VIBRATE_PATTERNS = {
+  default: "400,200,400",
+  done: "400,200,400",
+  subagent_done: "200,100,200",
+  question: "500,250,500",
+  permission: "600,200,600",
+  error: "800,300,800,300,800",
+}
+
+const PRIORITY_BY_KIND = {
+  default: "high",
+  done: "high",
+  subagent_done: "default",
+  question: "high",
+  permission: "high",
+  error: "high",
+}
 
 // ── defaults ────────────────────────────────────────────────────────────────
 
 const DEFAULTS = {
-  /** Absolute path to termux-notification binary */
   bin: "/data/data/com.termux/files/usr/bin/termux-notification",
-  /** Where cross-instance dedup state lives */
+  mediaBin: "/data/data/com.termux/files/usr/bin/termux-media-player",
   sharedPath: join(tmpdir(), "termux-notify-shared.json"),
-  /** How long an event.id is remembered (ms) */
   seenTTL: 60_000,
-  /** Ignore repeated idle/error for same session within this window (ms) */
   sessionCooldown: 5_000,
-  /** Global throttle across all sessions (ms) */
   globalCooldown: 1_000,
-  vibrateIdle: "400,200,400",
-  vibrateError: "800,300,800,300,800",
-  priority: "high",
-  sound: true,
-  /** If false, skip warning when not running inside Termux */
+  sound: true, // termux-notification --sound boolean + play mp3 via media player
+  playSound: true, // play bundled mp3 via termux-media-player
+  vibrate: true,
   requireTermux: true,
+  priority: undefined, // override per-kind if set
+}
+
+// ── audio path resolution ─────────────────────────────────────────────────
+
+function resolveAudioPath(file) {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const candidates = [
+      join(here, "../assets/audio", file),
+      join(here, "assets/audio", file),
+      join(here, "../../assets/audio", file),
+      join(here, "../src/assets/audio", file),
+      join(process.cwd(), "assets/audio", file),
+      join(process.cwd(), "src/assets/audio", file),
+    ]
+    for (const p of candidates) if (existsSync(p)) return p
+    return candidates[0]
+  } catch {
+    return file
+  }
+}
+
+async function playAudio(soundName, opts) {
+  if (!opts.playSound || !opts.sound) return
+  const file = SOUND_FILES[soundName]
+  if (!file) return
+  const path = resolveAudioPath(file)
+  if (!existsSync(path)) {
+    console.warn(`[termux-notify] audio file not found: ${path} for ${soundName}`)
+    return
+  }
+  const bin = existsSync(opts.mediaBin) ? opts.mediaBin : "termux-media-player"
+  return new Promise((resolve) => {
+    const p = spawn(bin, ["play", path], { stdio: "ignore" })
+    p.on("error", (err) => {
+      console.error(`[termux-notify] media play failed for ${soundName}:`, err.message)
+      resolve()
+    })
+    p.on("close", () => resolve())
+    // don't block — fire and forget, but resolve when done
+    setTimeout(() => {
+      try { p.unref?.() } catch {}
+      resolve()
+    }, 3000)
+  })
 }
 
 // ── shared dedup ──────────────────────────────────────────────────────────
 
-/**
- * @param {string} evtId
- * @param {string} sessionKey  `${sessionID}:${kind}`
- * @param {typeof DEFAULTS} opts
- * @returns {Promise<boolean>} true if caller should notify
- */
 async function shouldNotifyShared(evtId, sessionKey, opts) {
   const now = Date.now()
   let state = { seen: {}, lastBySession: {}, lastGlobal: 0 }
-
   try {
     const raw = await readFile(opts.sharedPath, "utf8")
     state = JSON.parse(raw)
     for (const [k, exp] of Object.entries(state.seen || {})) {
       if (now > exp) delete state.seen[k]
     }
-  } catch {
-    // missing/corrupt file -> start fresh
-  }
+  } catch {}
   state.seen ??= {}
   state.lastBySession ??= {}
 
@@ -80,7 +140,6 @@ async function shouldNotifyShared(evtId, sessionKey, opts) {
   state.lastBySession[sessionKey] = now
   state.lastGlobal = now
 
-  // prune to cap file size
   const seenKeys = Object.keys(state.seen)
   if (seenKeys.length > 300) {
     const sorted = seenKeys.sort((a, b) => state.seen[b] - state.seen[a])
@@ -105,57 +164,122 @@ async function shouldNotifyShared(evtId, sessionKey, opts) {
 
 // ── notification ──────────────────────────────────────────────────────────
 
-async function notify(title, content, nid, kind, opts) {
-  const vibrate = kind === "error" ? opts.vibrateError : opts.vibrateIdle
-  const baseArgs = [
-    "--id",
-    nid,
-    "--title",
-    title,
-    "--content",
-    content,
-    "--priority",
-    opts.priority,
-    "--vibrate",
-    vibrate,
-  ]
+async function notify(title, content, nid, soundName, opts) {
+  const vibrate = opts.vibrate ? (VIBRATE_PATTERNS[soundName] || VIBRATE_PATTERNS.default) : undefined
+  const priority = opts.priority || PRIORITY_BY_KIND[soundName] || "high"
+  const baseArgs = ["--id", nid, "--title", title, "--content", content, "--priority", priority]
+  if (vibrate) baseArgs.push("--vibrate", vibrate)
   if (opts.sound) baseArgs.push("--sound")
 
-  return new Promise((resolve, reject) => {
+  const notifPromise = new Promise((resolve, reject) => {
     const p = spawn(opts.bin, baseArgs, { stdio: "ignore" })
     p.on("error", reject)
     p.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`termux-notification exit ${code}`))))
   })
+
+  const audioPromise = playAudio(soundName, opts)
+
+  try {
+    await notifPromise
+  } catch (err) {
+    throw err
+  } finally {
+    // fire audio in parallel, don't block notification
+    void audioPromise.catch(() => {})
+  }
 }
 
 function isTermuxEnvironment() {
   return Boolean(process.env.TERMUX_VERSION || process.env.PREFIX?.includes("com.termux"))
 }
 
+// ── event classification ──────────────────────────────────────────────────
+
+async function classifyEvent(event, ctx) {
+  const t = event?.type
+  if (!t) return null
+
+  const sessionID = event.properties?.sessionID || event.data?.sessionID || event.sessionID || event.properties?.id || "global"
+  const evtId = event.id || event.eventID || `${t}:${sessionID}:${event.created || ""}:${event.properties?.id || event.properties?.requestID || ""}`
+
+  // question
+  if (t === "question.asked" || t === "question.v2.asked" || t === "question.updated" || t.startsWith("question")) {
+    return { kind: "question", sound: "question", sessionID, evtId, isSubagent: false }
+  }
+  // permission
+  if (t === "permission.asked" || t === "permission.v2.asked" || t.startsWith("permission")) {
+    return { kind: "permission", sound: "permission", sessionID, evtId, isSubagent: false }
+  }
+  // error
+  if (
+    t === "session.error" ||
+    t === "session.execution.failed" ||
+    t === "session.step.failed" ||
+    t === "error" ||
+    t.endsWith(".error")
+  ) {
+    return { kind: "error", sound: "error", sessionID, evtId, isSubagent: false }
+  }
+  // session.status idle -> done / subagent_done
+  if (t === "session.status" && event.properties?.status?.type === "idle") {
+    let isSubagent = false
+    try {
+      if (ctx?.session?.get) {
+        const info = await ctx.session.get({ sessionID })
+        const raw = info?.info || info?.data || info
+        isSubagent = Boolean(raw?.parentID || raw?.parentId || raw?.parent)
+      }
+    } catch {}
+    // check event payload for parentID too
+    if (!isSubagent && event.properties?.parentID) isSubagent = true
+    const sound = isSubagent ? "subagent_done" : "done"
+    const kind = isSubagent ? "subagent_done" : "done"
+    return { kind, sound, sessionID, evtId, isSubagent }
+  }
+  // legacy session.idle / execution.succeeded
+  if (t === "session.idle" || t === "session.execution.succeeded") {
+    let isSubagent = false
+    try {
+      if (ctx?.session?.get) {
+        const info = await ctx.session.get({ sessionID })
+        const raw = info?.info || info?.data || info
+        isSubagent = Boolean(raw?.parentID || raw?.parentId)
+      }
+    } catch {}
+    const sound = isSubagent ? "subagent_done" : "done"
+    const kind = isSubagent ? "subagent_done" : "done"
+    return { kind, sound, sessionID, evtId, isSubagent }
+  }
+
+  return null
+}
+
 // ── plugin ─────────────────────────────────────────────────────────────────
 
 export default define({
   id: "termux-notify",
-
-  /**
-   * @param {any} ctx  PluginContext (typed as any to stay compat across SDK versions)
-   */
   setup: async (ctx) => {
     const userOpts = (ctx.options ?? {})
     const opts = { ...DEFAULTS, ...userOpts }
-
-    if (typeof userOpts.sharedPath === "string" && userOpts.sharedPath.trim()) {
-      opts.sharedPath = userOpts.sharedPath
-    }
+    if (typeof userOpts.sharedPath === "string" && userOpts.sharedPath.trim()) opts.sharedPath = userOpts.sharedPath
+    if (typeof userOpts.bin === "string" && userOpts.bin.trim()) opts.bin = userOpts.bin
+    if (typeof userOpts.mediaBin === "string" && userOpts.mediaBin.trim()) opts.mediaBin = userOpts.mediaBin
 
     const enabledKinds = new Set(
-      Array.isArray(userOpts.kinds) && userOpts.kinds.length ? userOpts.kinds : ["idle", "error"]
+      Array.isArray(userOpts.kinds) && userOpts.kinds.length
+        ? userOpts.kinds
+        : ["default", "question", "permission", "error", "done", "subagent_done"]
     )
 
+    // legacy: if user passed ["idle","error"], map idle -> done/default
+    if (enabledKinds.has("idle")) {
+      enabledKinds.delete("idle")
+      enabledKinds.add("done")
+      enabledKinds.add("default")
+    }
+
     if (opts.requireTermux && !isTermuxEnvironment()) {
-      console.warn(
-        "[termux-notify] Not in Termux (TERMUX_VERSION/PREFIX missing) — plugin will still listen but notifications may fail. Set { requireTermux:false } to silence this."
-      )
+      console.warn("[termux-notify] Not in Termux (TERMUX_VERSION/PREFIX missing) — plugin will still listen but notifications may fail. Set { requireTermux:false } to silence this.")
     }
 
     if (!ctx?.event?.subscribe) {
@@ -166,41 +290,56 @@ export default define({
     const controller = new AbortController()
     const events = ctx.event.subscribe({ signal: controller.signal })
 
+    // track active sessions like TUI does to avoid spurious done
+    const active = new Set()
+    const errored = new Set()
+
     void (async () => {
       try {
         for await (const event of events) {
           if (!event?.type) continue
 
-          let kind = null
-          if (
-            event.type === "session.idle" ||
-            event.type === "session.execution.succeeded" ||
-            (event.type === "session.status" && event.status?.type === "idle")
-          ) {
-            kind = "idle"
-          } else if (
-            event.type === "session.error" ||
-            event.type === "session.execution.failed" ||
-            event.type === "session.step.failed"
-          ) {
-            kind = "error"
-          } else {
-            continue
+          // maintain active/errored tracking for session.status
+          if (event.type === "session.status") {
+            const sid = event.properties?.sessionID
+            if (!sid) continue
+            const st = event.properties?.status?.type
+            if (st === "busy" || st === "retry") {
+              active.add(sid)
+              errored.delete(sid)
+              continue // not a done yet
+            }
+            if (st !== "idle") continue
+            if (!active.has(sid)) continue // was not active → spurious
+            active.delete(sid)
+            if (errored.has(sid)) {
+              errored.delete(sid)
+              continue // was errored, session.error already notified
+            }
+            // fall through to classify as done
+          }
+          if (event.type === "session.error") {
+            const sid = event.properties?.sessionID
+            if (sid && active.has(sid)) errored.add(sid)
           }
 
-          if (!enabledKinds.has(kind)) continue
+          const classified = await classifyEvent(event, ctx)
+          if (!classified) continue
 
-          const evtId =
-            event.id ||
-            event.eventID ||
-            `${event.type}:${event.data?.sessionID || event.properties?.sessionID || ""}:${event.created || ""}`
-          const sessionID = event.data?.sessionID || event.properties?.sessionID || event.sessionID || "global"
-          const sessionKey = `${sessionID}:${kind}`
+          const { kind, sound, sessionID } = classified
+          if (!enabledKinds.has(kind) && !enabledKinds.has(sound)) continue
+
+          // also allow "default" to match any done if user only enabled default
+          // (they share same file)
+          const effectiveKind = kind
+
+          const evtId = classified.evtId
+          const sessionKey = `${sessionID}:${effectiveKind}`
 
           const ok = await shouldNotifyShared(evtId, sessionKey, opts)
           if (!ok) continue
 
-          const nid = `opencode-${sessionID}-${kind}`
+          const nid = `opencode-${sessionID}-${effectiveKind}`
 
           let sessionName = sessionID.slice(0, 8)
           try {
@@ -212,21 +351,39 @@ export default define({
                 sessionName = candidate.trim().slice(0, 40)
               }
             }
-          } catch {
-            // session lookup is best-effort
+          } catch {}
+
+          // titles per kind
+          const titles = {
+            default: `OpenCode — ${sessionName}`,
+            done: `OpenCode — ${sessionName}`,
+            subagent_done: `OpenCode (subagent) — ${sessionName}`,
+            question: `OpenCode ❓ — ${sessionName}`,
+            permission: `OpenCode 🔐 — ${sessionName}`,
+            error: `OpenCode ⚠️ — ${sessionName}`,
+          }
+          const contents = {
+            default: "Session finished ✅",
+            done: "Session done ✅",
+            subagent_done: "Subagent done ✅",
+            question: "Question needs input — go answer it",
+            permission: "Permission needs input — go approve it",
+            error: "Session errored — go check it",
           }
 
-          const titleIdle = typeof userOpts.titleIdle === "string" ? userOpts.titleIdle : `OpenCode — ${sessionName}`
-          const titleError = typeof userOpts.titleError === "string" ? userOpts.titleError : `OpenCode ⚠️ — ${sessionName}`
-          const contentIdle = typeof userOpts.contentIdle === "string" ? userOpts.contentIdle : "Session finished ✅"
-          const contentError = typeof userOpts.contentError === "string" ? userOpts.contentError : "Session errored — go check it"
+          const title = typeof userOpts[`title_${kind}`] === "string" ? userOpts[`title_${kind}`] : titles[kind] || titles.default
+          const content = typeof userOpts[`content_${kind}`] === "string" ? userOpts[`content_${kind}`] : contents[kind] || contents.default
+
+          // respect subagent config: by default play sound but suppress notification for subagent? mirror TUI
+          const notifySubagents = userOpts.notifySubagents !== false // default true for Termux (useful), but allow false to mirror TUI
+          if (kind === "subagent_done" && !notifySubagents) {
+            // only play sound, no termux-notification
+            await playAudio(sound, opts)
+            continue
+          }
 
           try {
-            if (kind === "idle") {
-              await notify(titleIdle, contentIdle, nid, "idle", opts)
-            } else {
-              await notify(titleError, contentError, nid, "error", opts)
-            }
+            await notify(title, content, nid, sound, opts)
           } catch (err) {
             console.error(`[termux-notify] Failed to send ${kind} notification:`, err?.message || err)
           }

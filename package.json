@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-termux-notify",
   "version": "1.0.0",
-  "description": "Termux-native notifications for OpenCode — vibrate + sound alerts on Android when sessions go idle or error, with cross-instance deduplication.",
+  "description": "Termux-native notifications for OpenCode — 6 attention sounds (default/question/permission/error/done/subagent_done) via termux-notification + termux-media-player, with cross-instance deduplication.",
   "type": "module",
   "keywords": [
     "opencode",
@@ -36,6 +36,7 @@
   "types": "./src/index.d.ts",
   "files": [
     "src/",
+    "assets/",
     "README.md",
     "LICENSE",
     "CHANGELOG.md"

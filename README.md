@@ -1,23 +1,36 @@
 # opencode-termux-notify
 
-> Termux-native notifications for [OpenCode](https://opencode.ai) on Android — get a vibrate + sound alert when your agent session goes idle or errors.
+> Termux-native notifications for [OpenCode](https://opencode.ai) on Android — vibrate + sound alerts for all 6 attention sounds.
 
 [![npm version](https://img.shields.io/npm/v/opencode-termux-notify)](https://www.npmjs.com/package/opencode-termux-notify)
 [![license](https://img.shields.io/npm/l/opencode-termux-notify)](./LICENSE)
 [![node](https://img.shields.io/node/v/opencode-termux-notify)](./package.json)
 
-Built from a battle-tested global plugin that runs inside Termux on Android. Handles the duplicate-event storm OpenCode emits (`session.idle` / `execution.succeeded` / `status:idle` triple) with cross-instance deduplication, so you get **one** notification per completion, not three.
+Built from a battle-tested global plugin that runs inside Termux on Android. Wires Opencode's 6 builtin attention sounds (`packages/tui/src/attention.ts`) to Termux:
+
+| Sound | File | Trigger |
+|---|---|---|
+| `default` | `bip-bop-01.mp3` | generic idle |
+| `question` | `bip-bop-03.mp3` | `question.asked` / `question.v2.asked` — agent needs input |
+| `permission` | `staplebops-06.mp3` | `permission.asked` / `permission.v2.asked` — needs approval |
+| `error` | `nope-03.mp3` | `session.error` / `execution.failed` |
+| `done` | `bip-bop-01.mp3` | `session.status idle` (non-subagent) |
+| `subagent_done` | `yup-01.mp3` | `session.status idle` (subagent, `parentID`) |
+
+> `termux-notification --sound` is boolean only (no file arg — `termux-notification -h`). Custom mp3s are bundled at `assets/audio/` and played via `termux-media-player play <file>` alongside the notification (vibrate still via `--vibrate`).
+
+Handles the duplicate-event storm OpenCode emits (`session.idle` / `execution.succeeded` / `status:idle` triple) with cross-instance deduplication, so you get **one** notification per completion, not three.
 
 ---
 
 ## Features
 
-- 📳 **Vibrate + sound** via `termux-notification` (`--vibrate`, `--sound`, `--priority high`)
+- 📳 **6 wired sounds** — `termux-notification --vibrate` per-kind + `termux-media-player` for bundled `bip-bop-*.mp3`/`staplebops`/`nope`/`yup`
 - 🧠 **Cross-instance dedup** — works even when OpenCode loads the plugin 4× (global + project scopes) via a shared JSON file + stable `--id`
-- 🔕 **No spam** — `event.id` TTL dedup (60s) + per-session cooldown (5s) + global throttle (1s)
+- 🔕 **No spam** — `event.id` TTL dedup (60s) + per-session cooldown (5s) + global throttle (1s) + `active` set tracking (mirrors `packages/tui/src/feature-plugins/system/notifications.ts`)
 - 🏷️ **Session-aware titles** — resolves session `title`/`slug` so the notification tells you *which* session finished
-- ⚠️ **Distinct error haptics** — longer vibrate pattern for errors (`800,300,800,300,800` vs `400,200,400`)
-- ⚙️ **Fully configurable** — binary path, vibrate patterns, priority, titles, cooldowns, shared state path
+- ⚠️ **Distinct haptics** — `error` `800,300,800,300,800` vs `question` `500,250,500` vs `permission` `600,200,600` vs `done` `400,200,400` vs `subagent_done` `200,100,200`
+- ⚙️ **Fully configurable** — binary paths, vibrate, priority, titles, cooldowns, `kinds`, `notifySubagents`, `playSound`
 
 ## Requirements
 
@@ -62,7 +75,7 @@ Project-local:
 }
 ```
 
-With options:
+With options (all 6 kinds):
 
 ```jsonc
 {
@@ -70,10 +83,10 @@ With options:
     {
       "package": "opencode-termux-notify",
       "options": {
-        "sound": true,
-        "vibrateIdle": "400,200,400",
-        "vibrateError": "800,300,800,300,800",
-        "kinds": ["idle", "error"],
+        "sound": true,          // termux-notification --sound + termux-media-player
+        "playSound": true,       // set false to disable mp3 playback
+        "kinds": ["default", "question", "permission", "error", "done", "subagent_done"],
+        "notifySubagents": true, // false = sound-only for subagents (like TUI)
         "priority": "high"
       }
     }
@@ -106,19 +119,20 @@ All options are passed via `ctx.options` (the `options` object in `opencode.json
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `bin` | `string` | `/data/data/com.termux/files/usr/bin/termux-notification` | Absolute path to `termux-notification` |
+| `bin` | `string` | `/data/data/com.termux/files/usr/bin/termux-notification` | `termux-notification` binary |
+| `mediaBin` | `string` | `/data/.../termux-media-player` | `termux-media-player` for mp3 playback |
 | `sharedPath` | `string` | `os.tmpdir()/termux-notify-shared.json` | Cross-instance dedup file |
 | `seenTTL` | `number` | `60000` | How long an `event.id` is remembered (ms) |
 | `sessionCooldown` | `number` | `5000` | Per-session debounce window (ms) |
 | `globalCooldown` | `number` | `1000` | Global throttle window (ms) |
-| `vibrateIdle` | `string` | `"400,200,400"` | Vibrate pattern for idle |
-| `vibrateError` | `string` | `"800,300,800,300,800"` | Vibrate pattern for error |
-| `priority` | `string` | `"high"` | Notification priority (`high`/`default`/`low`/`max`) |
-| `sound` | `boolean` | `true` | Pass `--sound` |
+| `priority` | `string` | _(per-kind)_ | Notification priority (`high`/`default`/`low`/`max`) — overrides `PRIORITY_BY_KIND` |
+| `sound` | `boolean` | `true` | Pass `--sound` (boolean, `termux-notification -h` has no file arg) + enable mp3 |
+| `playSound` | `boolean` | `true` | Play bundled `assets/audio/*.mp3` via `termux-media-player play` |
+| `vibrate` | `boolean` | `true` | Pass `--vibrate` per-kind pattern |
 | `requireTermux` | `boolean` | `true` | Warn if not in Termux |
-| `kinds` | `string[]` | `["idle","error"]` | Which events to notify on |
-| `titleIdle` / `titleError` | `string` | `OpenCode — <session>` | Title override |
-| `contentIdle` / `contentError` | `string` | `Session finished ✅` etc | Content override |
+| `kinds` | `string[]` | `["default","question","permission","error","done","subagent_done"]` | Which sounds to notify on (also supports legacy `["idle","error"]`) |
+| `notifySubagents` | `boolean` | `true` | If `false`, `subagent_done` is sound-only (mirrors TUI) |
+| `title_<kind>` / `content_<kind>` | `string` | _(per-kind)_ | Title/content override e.g. `title_question`, `content_error` |
 
 Example — only error notifications, custom title:
 
@@ -140,14 +154,20 @@ Example — only error notifications, custom title:
 ```
 OpenCode server ──event stream──► plugin (ctx.event.subscribe)
                                      │
-                                     ├─ classify: idle (session.idle / execution.succeeded / status:idle)
-                                     │         error (session.error / execution.failed / step.failed)
+                                     ├─ classify:
+                                     │   question.asked / v2 → question (bip-bop-03.mp3, vibrate 500,250,500)
+                                     │   permission.asked / v2 → permission (staplebops-06.mp3, 600,200,600)
+                                     │   session.error / execution.failed → error (nope-03.mp3, 800,300,800,300,800)
+                                     │   session.status idle → done (bip-bop-01.mp3, 400,200,400) or subagent_done (yup-01.mp3, 200,100,200)
+                                     │   session.idle / execution.succeeded → done
+                                     ├─ active/errored tracking (mirrors packages/tui/src/feature-plugins/system/notifications.ts)
                                      ├─ shouldNotifyShared(evtId, sessionKey)
                                      │     ├─ seen[event.id] TTL 60s        — server duplicate
                                      │     ├─ lastBySession[session:kind] 5s — triple suppression
                                      │     └─ lastGlobal 1s                  — cross-session burst
-                                     ├─ ctx.session.get(sessionID) → title/slug
-                                     └─ spawn termux-notification --id opencode-<session>-<kind> ...
+                                     ├─ ctx.session.get(sessionID) → title/slug + parentID check
+                                     └─ spawn termux-notification --id opencode-<session>-<kind> --vibrate ... --sound
+                                        + spawn termux-media-player play assets/audio/<kind>.mp3
 ```
 
 `--id` is stable per session+kind, so an update overwrites the previous notification instead of stacking. `--alert-once` is intentionally *not* used — it would suppress vibrate/sound on updates.
@@ -171,6 +191,8 @@ Shared state is stored atomically (`write tmp + rename`) at `sharedPath`. It sel
 **Vibrate/sound not playing**
 - Android battery optimization may silence Termux. Exempt Termux from optimization in Android settings.
 - Some vendors require `--priority max`. Try setting `"priority": "max"`.
+- `termux-notification --sound` is boolean only — custom `assets/audio/*.mp3` needs `termux-media-player` (`pkg install termux-api` already provides it). Test: `termux-media-player play assets/audio/bip-bop-01.mp3` then `termux-media-player info`.
+- Check `termux-notification -h` — there is no `--sound <file>`, only `--sound`. The plugin bundles the 5 mp3s and plays them via `termux-media-player` automatically.
 
 ## Development
 
