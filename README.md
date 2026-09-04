@@ -23,9 +23,8 @@ Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Route
 **V1 (default) — `opencode` (1.18.27+):**
 
 ```bash
-opencode plugin add opencode-termux-notify
-# or explicitly
-opencode plugin add opencode-termux-notify/v1
+opencode plugin opencode-termux-notify        # latest
+opencode plugin opencode-termux-notify -g      # install globally instead of per-project
 ```
 
 Add to `opencode.json`:
