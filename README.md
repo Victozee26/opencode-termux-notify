@@ -37,11 +37,7 @@ Add to `opencode.json`:
 }
 ```
 
-**V2 — `opencode2` (beta):**
-
-```bash
-opencode2 plugin add opencode-termux-notify/v2
-```
+**V2 — `opencode2` (beta) — JSONC:**
 
 Add to `opencode.json`:
 
