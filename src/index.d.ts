@@ -35,5 +35,22 @@ export interface TermuxNotifyOptions {
   contentError?: string;
 }
 
+export declare const SOUND_FILES: Record<string, string>;
+export declare const VIBRATE_PATTERNS: Record<string, string>;
+export declare const PRIORITY_BY_KIND: Record<string, string>;
+export declare const DEFAULTS: {
+  bin: string;
+  mediaBin: string;
+  sharedPath: string;
+  seenTTL: number;
+  sessionCooldown: number;
+  globalCooldown: number;
+  sound: boolean;
+  playSound: boolean;
+  vibrate: boolean;
+  requireTermux: boolean;
+  priority: string | undefined;
+};
+
 declare const plugin: Plugin;
 export default plugin;

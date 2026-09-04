@@ -17,7 +17,7 @@
     "rootDir": "src",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
+    "noEmit": false,
     "noUncheckedIndexedAccess": false
   },
   "include": ["src/**/*"],
