@@ -28,9 +28,9 @@ export function getTitle(kind: string, sessionName: string, userOpts: TermuxNoti
     default: `OpenCode — ${sessionName}`,
     done: `OpenCode — ${sessionName}`,
     subagent_done: `OpenCode (subagent) — ${sessionName}`,
-    question: `OpenCode ❓ — ${sessionName}`,
-    permission: `OpenCode 🔐 — ${sessionName}`,
-    error: `OpenCode ⚠️ — ${sessionName}`,
+    question: `OpenCode question — ${sessionName}`,
+    permission: `OpenCode permission — ${sessionName}`,
+    error: `OpenCode error — ${sessionName}`,
   }
   const key = `title_${kind}` as keyof TermuxNotifyOptions
   return typeof (userOpts as any)[key] === "string" ? (userOpts as any)[key] : titles[kind] || titles.default!
@@ -38,12 +38,12 @@ export function getTitle(kind: string, sessionName: string, userOpts: TermuxNoti
 
 export function getContent(kind: string, userOpts: TermuxNotifyOptions): string {
   const contents: Record<string, string> = {
-    default: "Session finished ✅",
-    done: "Session done ✅",
-    subagent_done: "Subagent done ✅",
-    question: "Question needs input — go answer it",
-    permission: "Permission needs input — go approve it",
-    error: "Session errored — go check it",
+    default: "Session finished",
+    done: "Session done",
+    subagent_done: "Subagent done",
+    question: "Question needs input",
+    permission: "Permission needs input",
+    error: "Session errored",
   }
   const key = `content_${kind}` as keyof TermuxNotifyOptions
   return typeof (userOpts as any)[key] === "string" ? (userOpts as any)[key] : contents[kind] || contents.default!
