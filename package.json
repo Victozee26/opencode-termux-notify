@@ -58,8 +58,7 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.18.27"
