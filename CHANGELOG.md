@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-09-04
+## [0.1.0] - 2026-09-04
 
 ### Added
 - Initial npm release, extracted from `~/.config/opencode/plugins/termux-notify`
@@ -25,4 +25,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript source (`src/index.ts`) + runtime JS (`src/index.js`) + types (`src/index.d.ts`)
 - Professional package scaffolding: README, LICENSE (MIT), CHANGELOG, `.gitignore`, `tsconfig.json`
 
-[1.0.0]: https://github.com/Victozee26/opencode-termux-notify/releases/tag/v1.0.0
+[0.1.0]: https://github.com/Victozee26/opencode-termux-notify/releases/tag/v0.1.0
