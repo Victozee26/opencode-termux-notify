@@ -29,11 +29,22 @@
     "url": "https://github.com/sponsors/Victozee26"
   },
   "exports": {
-    ".": "./dist/index.js",
+    ".": {
+      "import": "./dist/v1.js",
+      "types": "./dist/v1.d.ts"
+    },
+    "./v1": {
+      "import": "./dist/v1.js",
+      "types": "./dist/v1.d.ts"
+    },
+    "./v2": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/v1.js",
+  "types": "./dist/v1.d.ts",
   "files": [
     "dist/",
     "src/",

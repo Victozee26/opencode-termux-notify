@@ -1,0 +1,8 @@
+{
+  "name": "opencode-termux-notify-v2",
+  "type": "module",
+  "main": "../dist/index.js",
+  "exports": {
+    ".": "../dist/index.js"
+  }
+}
