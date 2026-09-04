@@ -54,8 +54,8 @@
     "@opencode-ai/plugin": "^1.18.27"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "^5.7.0"
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
