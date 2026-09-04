@@ -91,7 +91,7 @@ function resolveAudioPath(file) {
 }
 
 async function playAudio(soundName, opts) {
-  if (!opts.playSound || !opts.sound) return
+  if (!opts.playSound) return
   const file = SOUND_FILES[soundName]
   if (!file) return
   const path = resolveAudioPath(file)
@@ -169,7 +169,6 @@ async function notify(title, content, nid, soundName, opts) {
   const priority = opts.priority || PRIORITY_BY_KIND[soundName] || "high"
   const baseArgs = ["--id", nid, "--title", title, "--content", content, "--priority", priority]
   if (vibrate) baseArgs.push("--vibrate", vibrate)
-  if (opts.sound) baseArgs.push("--sound")
 
   const notifPromise = new Promise((resolve, reject) => {
     const p = spawn(opts.bin, baseArgs, { stdio: "ignore" })
