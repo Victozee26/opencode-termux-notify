@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-termux-notify",
-  "version": "0.1.0",
+  "version": "0.1.1-dev.1",
   "description": "Termux-native notifications for OpenCode — 6 attention sounds (default/question/permission/error/done/subagent_done) via termux-notification + termux-media-player, with cross-instance deduplication.",
   "type": "module",
   "keywords": [
@@ -30,8 +30,8 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/v1.js",
-      "types": "./dist/v1.d.ts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
     "./v1": {
       "import": "./dist/v1.js",
@@ -43,8 +43,8 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/v1.js",
-  "types": "./dist/v1.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "files": [
     "dist/",
     "src/",
@@ -58,7 +58,8 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "tag": "dev"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.18.27"
