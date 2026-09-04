@@ -37,21 +37,26 @@ Add to `opencode.json`:
 }
 ```
 
-**V2 — `opencode2` (beta) — JSONC:**
+**V2 — `opencode2` (beta):**
 
-Add to `opencode.json`:
+```bash
+opencode2 plugin add opencode-termux-notify/v2
+```
+
+Add to `opencode.jsonc` (`opencode.json(c)`):
 
 ```jsonc
-// ~/.config/opencode/opencode.json  (V2: plural "plugins")
+// ~/.config/opencode/opencode.jsonc  (V2: plural "plugins")
 {
   "$schema": "https://opencode.ai/config.json",
   "plugins": ["opencode-termux-notify/v2"]
 }
 ```
 
-Local path (this repo) for V2 — must be a directory:
+Local path (this repo) for V2 — must be a directory (`opencode.jsonc`):
 
 ```jsonc
+// opencode.jsonc
 {
   "plugins": ["/data/data/com.termux/files/home/opencode-termux-notify/v2"]
 }
@@ -59,10 +64,10 @@ Local path (this repo) for V2 — must be a directory:
 
 ## Usage
 
-With options (same for V1/V2, note `plugin` vs `plugins`):
+With options (same for V1/V2, note `plugin` vs `plugins` and `opencode.json` vs `opencode.jsonc`):
 
 ```jsonc
-// V1
+// V1 — opencode.json
 {
   "plugin": [["opencode-termux-notify", {
     "kinds": ["question", "permission", "error", "done", "subagent_done"],
@@ -70,7 +75,7 @@ With options (same for V1/V2, note `plugin` vs `plugins`):
     "priority": "high"
   }]]
 }
-// V2
+// V2 — opencode.jsonc
 {
   "plugins": [{
     "package": "opencode-termux-notify/v2",
