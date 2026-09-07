@@ -15,7 +15,7 @@ Termux notification plugin for [OpenCode](https://opencode.ai) on Android. Route
 
 ## Requirements
 
-- Android + Termux with `termux-api` (`pkg install termux-api` and install Termux:API app)
+- Android + Termux with `termux-api` (`pkg install termux-api` and install [Termux:API app](https://github.com/termux/termux-api)
 - Node >= 20, Opencode V2(V2 plugin API)
 
 ## Install
